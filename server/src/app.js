@@ -7,6 +7,7 @@ import chatRouter from "./routes/chat.routes.js"
 import messageRouter from "./routes/message.routes.js"
 import creditRouter from "./routes/credit.routes.js"
 import webhookRouter from "./routes/webhook.routes.js"
+import healthRouter from "./routes/health.routes.js"
 const app=express()
 let dbConnectionPromise = null
 
@@ -18,7 +19,13 @@ app.use(cors({
     credentials:true
 }))
 
+app.use("/api/v1/health", healthRouter)
+
 app.use(async (req, res, next) => {
+    if (req.path === "/api/v1/health") {
+        return next()
+    }
+
     try {
         if (!dbConnectionPromise) {
             dbConnectionPromise = connectDB()
