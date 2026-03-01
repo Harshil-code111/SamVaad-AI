@@ -52,10 +52,24 @@ app.use("/api/v1/chats", chatRouter)
 app.use("/api/v1/messages", messageRouter) // Messages are handled within chat routes
 app.use("/api/v1/credits", creditRouter) // Credit routes for subscription plans and purchases
 
+app.use((req, res) => {
+    return res.status(404).json({
+        success: false,
+        message: `Route not found: ${req.method} ${req.originalUrl}`
+    })
+})
 
 app.use((err, req, res, next) => {
     const statusCode = err?.statusCode || 500
     const message = err?.message || "Internal Server Error"
+
+    console.error("[api-error]", {
+        method: req?.method,
+        path: req?.originalUrl,
+        statusCode,
+        message,
+        stack: err?.stack
+    })
 
     return res.status(statusCode).json({
         success: false,

@@ -39,6 +39,13 @@ healthRouter.get("/", (req, res) => {
     return res.status(isHealthy ? 200 : 503).json({
         status: isHealthy ? "ok" : "degraded",
         timestamp: new Date().toISOString(),
+        deployment: {
+            node: process.version,
+            env: process.env.NODE_ENV || "development",
+            vercelRegion: process.env.VERCEL_REGION || null,
+            commitSha: process.env.VERCEL_GIT_COMMIT_SHA || null,
+            deploymentUrl: process.env.VERCEL_URL || null
+        },
         services: {
             database: db,
             env: {
