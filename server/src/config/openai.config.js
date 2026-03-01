@@ -14,9 +14,17 @@ if (!apiKey) {
     console.warn("[openai] OPENAI_API_KEY is missing. AI endpoints may fail until it is set in .env.");
 }
 
-const openai = new OpenAI({
-    apiKey: apiKey || "MISSING_OPENAI_API_KEY",
-    baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/"
-});
+const getOpenAIClient = () => {
+    const key = process.env.OPENAI_API_KEY;
 
-export default openai
+    if (!key) {
+        throw new Error("OPENAI_API_KEY is missing on server")
+    }
+
+    return new OpenAI({
+        apiKey: key,
+        baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/"
+    })
+}
+
+export { getOpenAIClient }

@@ -1,9 +1,19 @@
 import ImageKit from "imagekit";
 
-var imagekit = new ImageKit({
-    publicKey: process.env.IMAGEKIT_PUBLIC_KEY,
-    privateKey: process.env.IMAGEKIT_PRIVATE_KEY,
-    urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT
-});
+const getImageKitClient = () => {
+    const publicKey = process.env.IMAGEKIT_PUBLIC_KEY
+    const privateKey = process.env.IMAGEKIT_PRIVATE_KEY
+    const urlEndpoint = process.env.IMAGEKIT_URL_ENDPOINT
 
-export default imagekit;
+    if (!publicKey || !privateKey || !urlEndpoint) {
+        throw new Error("IMAGEKIT_PUBLIC_KEY, IMAGEKIT_PRIVATE_KEY, and IMAGEKIT_URL_ENDPOINT are required")
+    }
+
+    return new ImageKit({
+        publicKey,
+        privateKey,
+        urlEndpoint
+    })
+}
+
+export { getImageKitClient }

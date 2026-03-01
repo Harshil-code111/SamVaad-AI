@@ -5,8 +5,8 @@ import { ApiResponse } from "../../utils/apiResponse.js"
 import { ApiError } from "../../utils/apiError.js"
 import axios from "axios"
 import { User } from "../models/user.model.js"
-import openai from "../config/openai.config.js"
-import imagekit from "../config/imagekit.config.js"
+import { getOpenAIClient } from "../config/openai.config.js"
+import { getImageKitClient } from "../config/imagekit.config.js"
 
 const normalizeMessagePayload = (req) => {
     const body = req.body || {}
@@ -60,6 +60,7 @@ const buildSafeAssistantReply = (aiMessage) => {
 }
 
 const textMessageController = asyncHandler(async (req, res) => {
+    const openai = getOpenAIClient()
 
     // Get authenticated user and payload values
     const userId = req.user._id
@@ -137,6 +138,7 @@ const textMessageController = asyncHandler(async (req, res) => {
 
 //api controller for image generation
 const imageMessageController = asyncHandler(async (req, res) => {
+    const imagekit = getImageKitClient()
     // Get authenticated user for ownership + credit checks
     const userId = req.user._id
 
