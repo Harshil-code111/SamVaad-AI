@@ -62,19 +62,26 @@ app.use((req, res) => {
 app.use((err, req, res, next) => {
     const statusCode = err?.statusCode || 500
     const message = err?.message || "Internal Server Error"
+    const isProduction = process.env.NODE_ENV === "production"
+    const safeMessage = isProduction && statusCode >= 500 ? "Internal Server Error" : message
 
-    console.error("[api-error]", {
+    const logPayload = {
         method: req?.method,
         path: req?.originalUrl,
         statusCode,
-        message,
-        stack: err?.stack
-    })
+        message
+    }
+
+    if (!isProduction) {
+        logPayload.stack = err?.stack
+    }
+
+    console.error("[api-error]", logPayload)
 
     return res.status(statusCode).json({
         success: false,
-        message,
-        errors: err?.errors || []
+        message: safeMessage,
+        errors: isProduction ? [] : (err?.errors || [])
     })
 })
 
