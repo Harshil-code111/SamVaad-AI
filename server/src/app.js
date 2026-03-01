@@ -52,6 +52,18 @@ app.use("/api/v1/chats", chatRouter)
 app.use("/api/v1/messages", messageRouter) // Messages are handled within chat routes
 app.use("/api/v1/credits", creditRouter) // Credit routes for subscription plans and purchases
 
+app.get("/", (req, res) => {
+    return res.status(200).json({
+        success: true,
+        message: "SamVaad API is live",
+        health: "/api/v1/health"
+    })
+})
+
+app.get("/favicon.ico", (req, res) => {
+    return res.status(204).end()
+})
+
 app.use((req, res) => {
     return res.status(404).json({
         success: false,
