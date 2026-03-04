@@ -11,6 +11,7 @@ const ChatBox = () => {
   const [prompt, setPrompt] = useState("");
   const [mode, setMode] = useState("text");
   const [isPublished, setIsPublished] = useState(false);
+  const [fullScreenImage, setFullScreenImage] = useState(null);
   const isImageMode = mode?.trim().toLowerCase() === "image";
 
   const deductCreditsSafely = (amount) => {
@@ -165,6 +166,26 @@ const ChatBox = () => {
   const containerRef = useRef(null);
   return (
     <div className="flex flex-1 flex-col justify-between h-screen">
+      {/* Full-screen image viewer */}
+      {fullScreenImage && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setFullScreenImage(null)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 transition-colors"
+            onClick={() => setFullScreenImage(null)}
+          >
+            ×
+          </button>
+          <img 
+            src={fullScreenImage} 
+            alt="Full screen view" 
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
       {/* {chat messages} */}
       <div ref={containerRef}
         className={`flex flex-col flex-1 gap-0.5 px-8 py-4 overflow-y-auto ${
@@ -197,7 +218,11 @@ const ChatBox = () => {
           </>
         ) : (
           messages.map((message, index) => (
-            <Message key={index} message={message} />
+            <Message 
+              key={index} 
+              message={message} 
+              onImageClick={(imageUrl) => setFullScreenImage(imageUrl)}
+            />
           ))
         )}
 
@@ -220,7 +245,7 @@ const ChatBox = () => {
       {/* {input box} */}
       <form
         onSubmit={onSubmit}
-        className="bg-primary/20 dark:bg-[#583C79]/30 border border -primary dark:border-[#90609F]/30 rounded-full w-full max-w-3xl p-3 pl-4 mx-auto flex gap-4 items-center mb-16"
+        className="bg-primary/20 dark:bg-[#583C79]/30 border border -primary dark:border-[#90609F]/30 rounded-full w-full max-w-3xl p-3 pl-4 mx-auto flex gap-4 items-center mb-6 md:mb-8"
       >
         <select
           onChange={(e) => setMode(e.target.value.trim().toLowerCase())}

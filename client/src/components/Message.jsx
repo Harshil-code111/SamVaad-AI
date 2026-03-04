@@ -4,7 +4,7 @@ import moment from "moment";
 import Markdown from "react-markdown";
 import prism from "prismjs";  
 
-const Message = ({ message }) => {
+const Message = ({ message, onImageClick }) => {
   const aiTextLength =
     !message.isImage && typeof message.content === "string"
       ? message.content.trim().length
@@ -41,7 +41,8 @@ const Message = ({ message }) => {
               <img
                 src={message.content}
                 alt="generated"
-                className="rounded-md w-full max-w-sm"
+                className="rounded-md w-full max-w-sm cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => onImageClick?.(message.content)}
               />
             ) : (
               <div className="break-words">
