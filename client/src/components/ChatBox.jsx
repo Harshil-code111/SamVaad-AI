@@ -169,12 +169,13 @@ const ChatBox = () => {
       {/* Full-screen image viewer */}
       {fullScreenImage && (
         <div 
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm"
           onClick={() => setFullScreenImage(null)}
         >
           <button
-            className="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 transition-colors"
+            className="absolute top-4 right-4 text-white text-5xl font-light hover:text-gray-300 transition-colors leading-none"
             onClick={() => setFullScreenImage(null)}
+            aria-label="Close"
           >
             ×
           </button>
@@ -245,7 +246,7 @@ const ChatBox = () => {
       {/* {input box} */}
       <form
         onSubmit={onSubmit}
-        className="bg-primary/20 dark:bg-[#583C79]/30 border border -primary dark:border-[#90609F]/30 rounded-full w-full max-w-3xl p-3 pl-4 mx-auto flex gap-4 items-center mb-6 md:mb-8"
+        className="bg-primary/20 dark:bg-[#583C79]/30 border border -primary dark:border-[#90609F]/30 rounded-full w-full max-w-3xl p-3 pl-4 mx-auto flex gap-4 items-center mb-9 md:mb-16 mx-2 "
       >
         <select
           onChange={(e) => setMode(e.target.value.trim().toLowerCase())}
