@@ -246,12 +246,12 @@ const ChatBox = () => {
       {/* {input box} */}
       <form
         onSubmit={onSubmit}
-        className="bg-primary/20 dark:bg-[#583C79]/30 border border -primary dark:border-[#90609F]/30 rounded-full w-full max-w-4xl lg:p-3 p-6 mx-auto flex gap-4 items-center mb-12 "
+        className="bg-primary/20 dark:bg-[#583C79]/30 border border -primary dark:border-[#90609F]/30 rounded-full w-full max-w-4xl lg:p-3 py-4 mx-auto flex gap-4 items-center mb-12 "
       >
         <select
           onChange={(e) => setMode(e.target.value.trim().toLowerCase())}
           value={mode}
-          className="text-sm pl-2 pr-2 outline-none bg-primary/20 dark:bg-[#583C79]/30  rounded-full py-3 
+          className="text-sm pl-2 pr-2 outline-none bg-primary/20 dark:bg-[#583C79]/30  rounded-full py-3 md:ml-2 ml-4
         border border-primary dark:border-[#90609F]/30"
         >
           <option className="bg-white text-black hover:bg-gray-100" value="image">
@@ -266,14 +266,14 @@ const ChatBox = () => {
           placeholder="Type your prompt here"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          className="flex-1 w-full text-sm outline-none"
+          className="flex-1 w-full text-md outline-none "
           required
         />
         <button>
           <img
             src={loading ? assets.stop_icon : assets.send_icon}
             alt=""
-            className="w-11 cursor pointer "
+            className="w-11 cursor pointer mr-3 "
           />
         </button>
       </form>
