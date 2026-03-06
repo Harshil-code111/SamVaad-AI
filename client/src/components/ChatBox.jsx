@@ -13,6 +13,12 @@ const ChatBox = () => {
   const [isPublished, setIsPublished] = useState(false);
   const [fullScreenImage, setFullScreenImage] = useState(null);
   const isImageMode = mode?.trim().toLowerCase() === "image";
+  const isWebsiteMode = mode?.trim().toLowerCase() === "website";
+  const promptPlaceholder = isImageMode
+    ? "Describe the image you want to generate"
+    : isWebsiteMode
+      ? "Paste website URL or ask about the last shared website"
+      : "Type your prompt here";
 
   const deductCreditsSafely = (amount) => {
     setUser((prevUser) => {
@@ -244,6 +250,11 @@ const ChatBox = () => {
             <input type="checkbox" checked={isPublished} onChange={() => setIsPublished(!isPublished)} className="scale-150"/>
           </label>
         )}
+        {isWebsiteMode && (
+          <p className="w-full max-w-4xl mx-auto text-xs text-gray-500 dark:text-gray-400 mb-2 px-2">
+            Tip: First paste a page URL. Then ask follow-up questions in website mode.
+          </p>
+        )}
         {/* {input box} */}
         <form
           onSubmit={onSubmit}
@@ -260,10 +271,13 @@ const ChatBox = () => {
             <option className="bg-white text-black hover:bg-gray-100" value="text">
               Text
             </option>
+            <option className="bg-white text-black hover:bg-gray-100" value="website">
+              Website
+            </option>
           </select>
           <input
             type="text"
-            placeholder="Type your prompt here"
+            placeholder={promptPlaceholder}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             className="flex-1 w-full text-md outline-none "

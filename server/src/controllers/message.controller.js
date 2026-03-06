@@ -8,6 +8,8 @@ import { User } from "../models/user.model.js"
 import { getOpenAIClient } from "../config/openai.config.js"
 import { getImageKitClient } from "../config/imagekit.config.js"
 
+const URL_REGEX = /(https?:\/\/[^\s)]+)(?=\s|$)/i
+
 const normalizeMessagePayload = (req) => {
     const body = req.body || {}
 
@@ -144,6 +146,122 @@ const buildImagePrompt = (rawPrompt) => {
         "User description:",
         prompt
     ].join(" ")
+}
+
+const extractFirstUrlFromText = (text) => {
+    const value = String(text || "").trim()
+    const match = value.match(URL_REGEX)
+    return match?.[1]?.trim() || ""
+}
+
+const stripUrlsFromText = (text) => {
+    return String(text || "")
+        .replace(/https?:\/\/[^\s)]+/gi, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+}
+
+const decodeHtmlEntities = (input) => {
+    return String(input || "")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+}
+
+const extractReadableTextFromHtml = (html) => {
+    const withoutScript = String(html || "")
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, " ")
+        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, " ")
+        .replace(/<noscript\b[^<]*(?:(?!<\/noscript>)<[^<]*)*<\/noscript>/gi, " ")
+
+    const withoutTags = withoutScript.replace(/<[^>]+>/g, " ")
+    const decoded = decodeHtmlEntities(withoutTags)
+
+    return decoded
+        .replace(/\s+/g, " ")
+        .trim()
+}
+
+const findLatestWebsiteUrlInChat = (chat) => {
+    const messages = Array.isArray(chat?.messages) ? [...chat.messages] : []
+
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+        const current = messages[i]
+        const url = extractFirstUrlFromText(current?.content)
+        if (url) return url
+    }
+
+    return ""
+}
+
+const fetchWebsiteText = async (targetUrl) => {
+    let parsedUrl
+    try {
+        parsedUrl = new URL(targetUrl)
+    } catch {
+        throw new ApiError(400, "Please provide a valid website URL starting with http:// or https://")
+    }
+
+    if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+        throw new ApiError(400, "Only http/https website URLs are supported")
+    }
+
+    let response
+    try {
+        response = await axios.get(parsedUrl.toString(), {
+            timeout: 15000,
+            maxRedirects: 5,
+            headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
+                Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            },
+        })
+    } catch (error) {
+        const status = error?.response?.status
+        const message = status
+            ? `Could not read website content (status ${status}).`
+            : "Could not read website content."
+
+        throw new ApiError(502, message)
+    }
+
+    const html = String(response?.data || "")
+    const text = extractReadableTextFromHtml(html)
+
+    if (!text || text.length < 120) {
+        throw new ApiError(422, "Website content is too short or not readable. Please try another page URL.")
+    }
+
+    return text.slice(0, 24000)
+}
+
+const buildWebsiteQuestion = (prompt, explicitUrl) => {
+    const questionWithoutUrl = stripUrlsFromText(prompt)
+    if (questionWithoutUrl) return questionWithoutUrl
+
+    if (explicitUrl) {
+        return "Please summarize this website in simple points and include the key takeaways."
+    }
+
+    return "Please answer the user question based on the website content."
+}
+
+const buildWebsiteChatPrompt = ({ websiteUrl, question, websiteText }) => {
+    return [
+        "You are helping a user chat with a website.",
+        "Answer strictly from the provided website content.",
+        "If information is not present in the content, clearly say that it is not available on the page.",
+        "Keep response concise, clear, and helpful.",
+        `Website URL: ${websiteUrl}`,
+        "",
+        `User question: ${question}`,
+        "",
+        "Website content:",
+        websiteText,
+    ].join("\n")
 }
 
 const isLiveHumanImageRequest = (rawPrompt) => {
@@ -370,7 +488,101 @@ const imageMessageController = asyncHandler(async (req, res) => {
 
 })
 
+const websiteMessageController = asyncHandler(async (req, res) => {
+    const openai = getOpenAIClient()
+    const userId = req.user._id
+    const { chatId, prompt, receivedKeys } = normalizeMessagePayload(req)
+    const explicitUrl = extractFirstUrlFromText(req.body?.websiteUrl || "") || extractFirstUrlFromText(prompt)
+
+    if (!chatId || !prompt?.trim()) {
+        throw new ApiError(400, "chatId and prompt are required", [
+            `Received keys: ${receivedKeys.length ? receivedKeys.join(", ") : "none"}`
+        ])
+    }
+
+    if (req.user.credits <= 0) {
+        return res
+            .status(403)
+            .json(new ApiResponse(403, null, "Not enough credits"))
+    }
+
+    const chat = await Chat.findOne({ _id: chatId, userId })
+
+    if (!chat) {
+        throw new ApiError(404, "Chat not found")
+    }
+
+    if (!chat.name?.trim()) {
+        chat.name = prompt.trim().slice(0, 40) || "New Chat"
+    }
+    if (!chat.username?.trim()) {
+        chat.username = req.user?.username || "User"
+    }
+
+    const fallbackUrlFromChat = findLatestWebsiteUrlInChat(chat)
+    const websiteUrl = explicitUrl || fallbackUrlFromChat
+
+    if (!websiteUrl) {
+        throw new ApiError(400, "Please paste a website URL first, then ask your question.")
+    }
+
+    chat.messages.push({
+        isImage: false,
+        isPublished: false,
+        timestamp: Date.now(),
+        role: "user",
+        content: prompt.trim(),
+    })
+
+    try {
+        const websiteText = await fetchWebsiteText(websiteUrl)
+        const question = buildWebsiteQuestion(prompt, explicitUrl)
+        const websitePrompt = buildWebsiteChatPrompt({ websiteUrl, question, websiteText })
+
+        const { choices } = await createTextCompletion(openai, websitePrompt)
+        const aiMessage = choices?.[0]?.message
+
+        if (!aiMessage) {
+            throw new ApiError(500, "Failed to get response from AI")
+        }
+
+        const reply = buildSafeAssistantReply(aiMessage)
+        reply.content = `${reply.content.trim()}\n\nSource: ${websiteUrl}`
+
+        chat.messages.push(reply)
+        await chat.save()
+        await User.updateOne({ _id: userId }, { $inc: { credits: -1 } })
+
+        return res
+            .status(200)
+            .json(new ApiResponse(200, reply, "Website answer generated successfully"))
+    } catch (error) {
+        const statusCode = error?.statusCode || error?.status || error?.response?.status
+        const shouldUseRateLimitFallback = statusCode === 429 || isRateLimitError(error)
+
+        if (shouldUseRateLimitFallback) {
+            const fallbackReply = {
+                role: "assistant",
+                content: "I’m receiving too many requests right now. Please try again in a few moments. Your credit was not deducted.",
+                isImage: false,
+                isPublished: false,
+                timestamp: Date.now()
+            }
+
+            chat.messages.push(fallbackReply)
+            await chat.save()
+
+            return res
+                .status(200)
+                .json(new ApiResponse(200, fallbackReply, "Rate limited fallback response"))
+        }
+
+        throw error
+    }
+})
+
 export {
     textMessageController,
-    imageMessageController
+    imageMessageController,
+    websiteMessageController
 }
